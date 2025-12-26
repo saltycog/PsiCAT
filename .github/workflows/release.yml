@@ -1,21 +1,87 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.2.3)'
+        required: true
+        type: string
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-  build-and-release:
+  check-and-release:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest release tag
+        id: latest-tag
+        uses: actions-ecosystem/action-get-latest-tag@v1
+        with:
+          initial_version: v0.0.0
+
+      - name: Display latest release
+        run: |
+          echo "Latest release tag: ${{ steps.latest-tag.outputs.tag }}"
+
+      - name: Validate release version format
+        id: validate-version
+        uses: geritol/validate-semver@v1.0.0
+        with:
+          version: ${{ github.event.inputs.version }}
+
+      - name: Validate version increment
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          LATEST_VERSION="${{ steps.latest-tag.outputs.tag }}"
+
+          # If first release, allow any valid semver
+          if [ "$LATEST_VERSION" = "v0.0.0" ]; then
+            echo "✓ No previous releases - first release allowed"
+            exit 0
+          fi
+
+          # Parse versions (remove v prefix)
+          NEW_VERSION="${VERSION#v}"
+          OLD_VERSION="${LATEST_VERSION#v}"
+          IFS='.' read -r NM NMI NP <<< "$NEW_VERSION"
+          IFS='.' read -r OM OMI OP <<< "$OLD_VERSION"
+
+          # Compare: if new > old in any part (major first, then minor, then patch)
+          if (( ${NM#0} > ${OM#0} || (${NM#0} == ${OM#0} && ${NMI#0} > ${OMI#0}) || (${NM#0} == ${OM#0} && ${NMI#0} == ${OMI#0} && ${NP#0} > ${OP#0}) )); then
+            echo "✓ Version increment valid: $LATEST_VERSION → $VERSION"
+            exit 0
+          fi
+
+          echo "❌ Version must be greater than the latest release ($LATEST_VERSION)"
+          exit 1
+
+      - name: Check for differences between main and latest release
+        run: |
+          LATEST_TAG="${{ steps.latest-tag.outputs.tag }}"
+
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            echo "✓ No previous releases - proceeding with initial release"
+            exit 0
+          fi
+
+          LATEST_COMMIT=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null || echo "")
+          MAIN_COMMIT=$(git rev-parse origin/main)
+
+          if [ "$LATEST_COMMIT" = "$MAIN_COMMIT" ]; then
+            echo "❌ Release failed: main has not changed since $LATEST_TAG"
+            exit 1
+          fi
+
+          echo "✓ main branch has changed since last release ($LATEST_TAG)"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -30,14 +96,21 @@ jobs:
 
       - name: Create release package
         run: |
+          VERSION="${{ github.event.inputs.version }}"
           # Copy daemon scripts to publish directory
           mkdir -p publish/daemon
           cp PsiCAT.DiscordApp/daemon/* publish/daemon/
 
           # Create zip archive
           cd publish
-          zip -r ../psicat-${{ github.ref_name }}.zip .
+          zip -r ../psicat-${VERSION}.zip .
           cd ..
+
+      - name: Push version tag
+        uses: actions-ecosystem/action-push-tag@v1
+        with:
+          tag: ${{ github.event.inputs.version }}
+          message: 'Release ${{ github.event.inputs.version }}'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -55,7 +128,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:${{ github.event.inputs.version }}
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -63,7 +136,8 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          files: psicat-${{ github.ref_name }}.zip
+          tag_name: ${{ github.event.inputs.version }}
+          files: psicat-${{ github.event.inputs.version }}.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
