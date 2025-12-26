@@ -89,14 +89,21 @@ install_dotnet_runtime() {
 
     # Add Microsoft package repository based on Ubuntu version
     case "$UBUNTU_VERSION_ID" in
-        24.04|24.10)
+        24.10)
             REPO_URL="https://packages.microsoft.com/ubuntu/24.04/prod"
+            CODENAME="oracular"
+            ;;
+        24.04)
+            REPO_URL="https://packages.microsoft.com/ubuntu/24.04/prod"
+            CODENAME="noble"
             ;;
         22.04)
             REPO_URL="https://packages.microsoft.com/ubuntu/22.04/prod"
+            CODENAME="jammy"
             ;;
         20.04)
             REPO_URL="https://packages.microsoft.com/ubuntu/20.04/prod"
+            CODENAME="focal"
             ;;
         *)
             log_error "Unsupported Ubuntu version: $UBUNTU_VERSION_ID (requires 20.04 or later)"
@@ -105,7 +112,7 @@ install_dotnet_runtime() {
     esac
 
     log_info "Adding Microsoft repository for Ubuntu $UBUNTU_VERSION_ID..."
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] $REPO_URL jammy main" | \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] $REPO_URL $CODENAME main" | \
         tee /etc/apt/sources.list.d/microsoft-prod.list >/dev/null || {
         log_error "Failed to add Microsoft repository"
         return 1
