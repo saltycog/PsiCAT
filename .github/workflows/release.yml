@@ -112,6 +112,11 @@ jobs:
           tag: ${{ github.event.inputs.version }}
           message: 'Release ${{ github.event.inputs.version }}'
 
+      - name: Set Docker image repository (lowercase)
+        id: docker-repo
+        run: |
+          echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -128,8 +133,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ github.event.inputs.version }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ steps.docker-repo.outputs.repo }}:${{ github.event.inputs.version }}
+            ghcr.io/${{ steps.docker-repo.outputs.repo }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
