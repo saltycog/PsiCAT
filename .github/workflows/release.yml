@@ -52,11 +52,28 @@ jobs:
           # Parse versions (remove v prefix)
           NEW_VERSION="${VERSION#v}"
           OLD_VERSION="${LATEST_VERSION#v}"
-          IFS='.' read -r NM NMI NP <<< "$NEW_VERSION"
-          IFS='.' read -r OM OMI OP <<< "$OLD_VERSION"
+
+          # Split versions into major.minor.patch using parameter expansion
+          NEW_MAJOR="${NEW_VERSION%%.*}"
+          NEW_TEMP="${NEW_VERSION#*.}"
+          NEW_MINOR="${NEW_TEMP%%.*}"
+          NEW_PATCH="${NEW_TEMP##*.}"
+
+          OLD_MAJOR="${OLD_VERSION%%.*}"
+          OLD_TEMP="${OLD_VERSION#*.}"
+          OLD_MINOR="${OLD_TEMP%%.*}"
+          OLD_PATCH="${OLD_TEMP##*.}"
+
+          # Force base-10 interpretation to avoid octal issues
+          NEW_MAJOR=$((10#$NEW_MAJOR))
+          NEW_MINOR=$((10#$NEW_MINOR))
+          NEW_PATCH=$((10#$NEW_PATCH))
+          OLD_MAJOR=$((10#$OLD_MAJOR))
+          OLD_MINOR=$((10#$OLD_MINOR))
+          OLD_PATCH=$((10#$OLD_PATCH))
 
           # Compare: if new > old in any part (major first, then minor, then patch)
-          if (( ${NM#0} > ${OM#0} || (${NM#0} == ${OM#0} && ${NMI#0} > ${OMI#0}) || (${NM#0} == ${OM#0} && ${NMI#0} == ${OMI#0} && ${NP#0} > ${OP#0}) )); then
+          if (( NEW_MAJOR > OLD_MAJOR || (NEW_MAJOR == OLD_MAJOR && NEW_MINOR > OLD_MINOR) || (NEW_MAJOR == OLD_MAJOR && NEW_MINOR == OLD_MINOR && NEW_PATCH > OLD_PATCH) )); then
             echo "✓ Version increment valid: $LATEST_VERSION → $VERSION"
             exit 0
           fi
