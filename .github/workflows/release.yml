@@ -34,7 +34,7 @@ jobs:
 
       - name: Validate release version format
         id: validate-version
-        uses: geritol/validate-semver@v1.0.0
+        uses: matt-usurp/validate-semver@v2
         with:
           version: ${{ github.event.inputs.version }}
 
