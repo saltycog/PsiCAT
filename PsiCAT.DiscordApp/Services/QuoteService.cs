@@ -1,7 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PsiCAT.DiscordApp.Models;
-using System.Text.Json.Serialization;
 
 namespace PsiCAT.DiscordApp.Services;
 
@@ -9,17 +10,20 @@ public class QuoteService
 {
     private readonly List<Quote> _quotes = new();
     private readonly PsiCatOptions _options;
-    private readonly IWebHostEnvironment _env;
+    private readonly string _contentRootPath;
+    private readonly string _webRootPath;
     private readonly ILogger<QuoteService> _logger;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
 
     public QuoteService(
         IOptions<PsiCatOptions> options,
-        IWebHostEnvironment env,
+        string contentRootPath,
+        string webRootPath,
         ILogger<QuoteService> logger)
     {
         _options = options.Value;
-        _env = env;
+        _contentRootPath = contentRootPath;
+        _webRootPath = webRootPath;
         _logger = logger;
 
         LoadQuotes();
@@ -29,10 +33,10 @@ public class QuoteService
     {
         try
         {
-            _logger.LogInformation("ContentRootPath: {ContentRootPath}", _env.ContentRootPath);
+            _logger.LogInformation("ContentRootPath: {ContentRootPath}", _contentRootPath);
             _logger.LogInformation("QuotesFilePath from config: {QuotesFilePath}", _options.QuotesFilePath);
 
-            string quotesPath = Path.Combine(_env.ContentRootPath, _options.QuotesFilePath);
+            string quotesPath = Path.Combine(_contentRootPath, _options.QuotesFilePath);
 
             _logger.LogInformation("Attempting to load quotes from: {QuotesPath}", quotesPath);
 
@@ -74,7 +78,7 @@ public class QuoteService
             return null;
         }
 
-        var index = Random.Shared.Next(_quotes.Count);
+        int index = Random.Shared.Next(_quotes.Count);
         return _quotes[index];
     }
 
@@ -103,7 +107,7 @@ public class QuoteService
     /// </summary>
     private string GetAvatarFileExtension(string avatarName)
     {
-        string avatarsPath = Path.Combine(_env.WebRootPath, "avatars");
+        string avatarsPath = Path.Combine(_webRootPath, "avatars");
         string[] supportedExtensions = ["gif", "png", "jpg", "jpeg", "webp"];
 
         foreach (string extension in supportedExtensions)
@@ -125,7 +129,7 @@ public class QuoteService
     /// <returns>An array of avatar names (without extensions), or an empty array if the directory doesn't exist.</returns>
     public string[] GetAllAvatarNames()
     {
-        string avatarsPath = Path.Combine(_env.WebRootPath, "avatars");
+        string avatarsPath = Path.Combine(_webRootPath, "avatars");
 
         if (!Directory.Exists(avatarsPath))
         {
@@ -183,7 +187,7 @@ public class QuoteService
         await _fileLock.WaitAsync();
         try
         {
-            string quotesPath = Path.Combine(_env.ContentRootPath, _options.QuotesFilePath);
+            string quotesPath = Path.Combine(_contentRootPath, _options.QuotesFilePath);
             string tempPath = quotesPath + ".tmp";
 
             QuoteCollection collection = new QuoteCollection { Quotes = _quotes };
@@ -214,7 +218,7 @@ public class QuoteService
             return false;
         }
 
-        string avatarsPath = Path.Combine(_env.WebRootPath, "avatars");
+        string avatarsPath = Path.Combine(_webRootPath, "avatars");
         string[] supportedExtensions = ["gif", "png", "jpg", "jpeg", "webp"];
 
         foreach (string extension in supportedExtensions)

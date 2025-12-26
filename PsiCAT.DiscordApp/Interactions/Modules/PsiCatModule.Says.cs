@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using Microsoft.Extensions.Logging;
 using PsiCAT.DiscordApp.Models;
 
 namespace PsiCAT.DiscordApp.Interactions.Modules;

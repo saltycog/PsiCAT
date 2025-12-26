@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Webhook;
+using Microsoft.Extensions.Logging;
 using PsiCAT.DiscordApp.Models;
 
 namespace PsiCAT.DiscordApp.Services;
@@ -24,7 +25,7 @@ public class WebhookService
         {
             webhook = await channel.CreateWebhookAsync("PsiCAT Quote");
 
-            using var webhookClient = new DiscordWebhookClient(webhook);
+            using DiscordWebhookClient webhookClient = new DiscordWebhookClient(webhook);
 
             await webhookClient.SendMessageAsync(
                 text: quote.Text,

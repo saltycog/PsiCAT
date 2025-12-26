@@ -1,17 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-# PsiCAT - Remote Installation and Update Script
-# Downloads the latest release from GitHub and installs binaries + daemon
-# Supports updating existing installations
+# PsiCAT - Docker-based Remote Installation and Update Script
+# Downloads the latest Docker image and uses docker-compose to run the service
 # Usage: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/YOUR_ORG/PsiCAT/main/install.sh)"
 # Or: bash install.sh [GITHUB_REPO_URL]
 
 # Configuration
-GITHUB_REPO="${1:-saltycog/PsiCAT}"  # Default: saltycog/PsiCAT, override with argument
-GITHUB_API="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+GITHUB_REPO="${1:-saltycog/PsiCAT}"
+GITHUB_RAW="https://raw.githubusercontent.com/${GITHUB_REPO}/main"
 INSTALL_DIR="/opt/psicat/discord"
-SERVICE_NAME="psicat-discord"
 BACKUP_DIR="${INSTALL_DIR}.backup"
 TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
@@ -37,47 +35,6 @@ log_error() {
 
 log_section() {
     echo -e "${BLUE}==>${NC} $1"
-}
-
-# Check if running as root
-if [[ $EUID -ne 0 ]]; then
-    log_error "This script must be run as root (use sudo)"
-    exit 1
-fi
-
-log_section "PsiCAT Installation/Update"
-log_info "Repository: $GITHUB_REPO"
-
-# Check if PsiCAT is already installed
-is_installed() {
-    [[ -d "$INSTALL_DIR" && -f "$INSTALL_DIR/appsettings.json" ]]
-}
-
-# Extract version from release tag (v1.2.3 -> 1.2.3)
-normalize_version() {
-    echo "${1#v}"
-}
-
-# Compare two semantic versions: returns 1 if v1 > v2, 0 otherwise
-version_greater_than() {
-    local v1=$(normalize_version "$1")
-    local v2=$(normalize_version "$2")
-
-    if [[ "$v1" == "$v2" ]]; then
-        return 1  # equal
-    fi
-
-    # Simple comparison: convert to comparable format
-    [[ "$(printf '%s\n' "$v1" "$v2" | sort -V | head -n1)" == "$v2" ]]
-}
-
-# Get installed version (from systemd service or release info file)
-get_installed_version() {
-    if [[ -f "$INSTALL_DIR/.psicat-version" ]]; then
-        cat "$INSTALL_DIR/.psicat-version"
-    else
-        echo "unknown"
-    fi
 }
 
 # Prompt user with yes/no question
@@ -108,16 +65,57 @@ prompt_yes_no() {
     done
 }
 
-# Check if installation is already in progress
-if [[ -f "$INSTALL_DIR/.install-lock" ]]; then
-    log_warn "Installation in progress or previous installation was interrupted"
-    if prompt_yes_no "Remove lock and continue?" "y"; then
-        rm -f "$INSTALL_DIR/.install-lock"
-    else
-        log_error "Installation cancelled"
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+    log_error "This script must be run as root (use sudo)"
+    exit 1
+fi
+
+log_section "PsiCAT Docker Installation/Update"
+log_info "Repository: $GITHUB_REPO"
+echo ""
+
+# Check for required tools
+log_info "Checking for required tools..."
+for cmd in docker docker-compose curl jq; do
+    if ! command -v "$cmd" &>/dev/null; then
+        log_error "Required tool not found: $cmd"
+        log_info "Install Docker and Docker Compose, then run this script again."
+        log_info "See: https://docs.docker.com/engine/install/"
         exit 1
     fi
-fi
+done
+
+# Check if installation exists
+is_installed() {
+    [[ -d "$INSTALL_DIR" && -f "$INSTALL_DIR/docker-compose.yml" && -f "$INSTALL_DIR/.env" ]]
+}
+
+# Extract version from release tag (v1.2.3 -> 1.2.3)
+normalize_version() {
+    echo "${1#v}"
+}
+
+# Compare two semantic versions: returns 0 if v1 > v2
+version_greater_than() {
+    local v1=$(normalize_version "$1")
+    local v2=$(normalize_version "$2")
+
+    if [[ "$v1" == "$v2" ]]; then
+        return 1  # equal
+    fi
+
+    [[ "$(printf '%s\n' "$v1" "$v2" | sort -V | head -n1)" == "$v2" ]]
+}
+
+# Get installed version
+get_installed_version() {
+    if [[ -f "$INSTALL_DIR/.psicat-version" ]]; then
+        cat "$INSTALL_DIR/.psicat-version"
+    else
+        echo "unknown"
+    fi
+}
 
 # Display current installation status
 if is_installed; then
@@ -127,17 +125,11 @@ else
     log_info "No existing installation found"
 fi
 
-# Check for required tools
-for cmd in curl jq tar; do
-    if ! command -v "$cmd" &>/dev/null; then
-        log_error "Required tool not found: $cmd"
-        exit 1
-    fi
-done
+echo ""
 
 # Fetch latest release info
 log_info "Fetching latest release from GitHub..."
-RELEASE_INFO=$(curl -fsSL "$GITHUB_API" 2>/dev/null || {
+RELEASE_INFO=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null || {
     log_error "Failed to fetch release information"
     log_info "Ensure the repository exists and is public: https://github.com/${GITHUB_REPO}"
     exit 1
@@ -145,9 +137,8 @@ RELEASE_INFO=$(curl -fsSL "$GITHUB_API" 2>/dev/null || {
 
 # Extract release information
 RELEASE_TAG=$(echo "$RELEASE_INFO" | jq -r '.tag_name' 2>/dev/null || echo "")
-RELEASE_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[0].browser_download_url' 2>/dev/null || echo "")
 
-if [[ -z "$RELEASE_TAG" || -z "$RELEASE_URL" ]]; then
+if [[ -z "$RELEASE_TAG" ]]; then
     log_error "Could not parse release information"
     echo "Response: $RELEASE_INFO" >&2
     exit 1
@@ -184,8 +175,9 @@ if [[ "$IS_UPDATE" == "true" ]]; then
     touch "$INSTALL_DIR/.install-lock"
 
     log_section "Preparing update"
-    log_info "Stopping service..."
-    systemctl stop "$SERVICE_NAME" || log_warn "Service was not running"
+    log_info "Stopping Docker service..."
+    cd "$INSTALL_DIR"
+    docker-compose down || log_warn "Service was not running"
 
     # Create backup of current installation
     if [[ -d "$BACKUP_DIR" ]]; then
@@ -197,160 +189,125 @@ if [[ "$IS_UPDATE" == "true" ]]; then
     cp -r "$INSTALL_DIR" "$BACKUP_DIR"
 fi
 
-# Download release asset
-log_info "Downloading release artifact..."
-ARCHIVE_NAME=$(basename "$RELEASE_URL")
-if ! curl -fsSL -o "$TEMP_DIR/$ARCHIVE_NAME" "$RELEASE_URL"; then
-    log_error "Failed to download release artifact"
+# Create installation directory
+log_section "Setting up installation"
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR/data/avatars"
+
+# Download docker-compose.yml
+log_info "Downloading docker-compose.yml..."
+if ! curl -fsSL "${GITHUB_RAW}/PsiCAT.Core/daemon/docker-compose.yml" -o "$INSTALL_DIR/docker-compose.yml"; then
+    log_error "Failed to download docker-compose.yml"
     if [[ "$IS_UPDATE" == "true" ]]; then
         log_error "Restoring from backup..."
         rm -rf "$INSTALL_DIR"
-        cp -r "$BACKUP_DIR" "$INSTALL_DIR"
-        systemctl start "$SERVICE_NAME" || log_warn "Could not restart service"
+        mv "$BACKUP_DIR" "$INSTALL_DIR"
+        cd "$INSTALL_DIR"
+        docker-compose up -d || log_warn "Could not restart service"
         rm -f "$INSTALL_DIR/.install-lock"
     fi
     exit 1
 fi
 
-log_info "Downloaded: $ARCHIVE_NAME"
+# Create or update .env file
+if [[ ! -f "$INSTALL_DIR/.env" ]]; then
+    log_info "Creating .env configuration file..."
+    cat > "$INSTALL_DIR/.env" << 'ENVFILE'
+# Discord Bot Configuration
+DISCORD_BOT_TOKEN=your_bot_token_here
+DISCORD_GUILD_ID=your_guild_id_here
 
-# Extract archive
-log_info "Extracting files..."
-case "$ARCHIVE_NAME" in
-    *.tar.gz)
-        tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$TEMP_DIR"
-        ;;
-    *.zip)
-        unzip -q "$TEMP_DIR/$ARCHIVE_NAME" -d "$TEMP_DIR"
-        ;;
-    *)
-        log_error "Unsupported archive format: $ARCHIVE_NAME"
-        if [[ "$IS_UPDATE" == "true" ]]; then
-            log_error "Restoring from backup..."
-            rm -rf "$INSTALL_DIR"
-            cp -r "$BACKUP_DIR" "$INSTALL_DIR"
-            systemctl start "$SERVICE_NAME" || log_warn "Could not restart service"
-            rm -f "$INSTALL_DIR/.install-lock"
-        fi
-        exit 1
-        ;;
-esac
-
-# Find the install-service.sh script
-INSTALL_SERVICE_SCRIPT=""
-if [[ -f "$TEMP_DIR/PsiCAT.DiscordApp/daemon/install-service.sh" ]]; then
-    INSTALL_SERVICE_SCRIPT="$TEMP_DIR/PsiCAT.DiscordApp/daemon/install-service.sh"
-elif [[ -f "$TEMP_DIR/daemon/install-service.sh" ]]; then
-    INSTALL_SERVICE_SCRIPT="$TEMP_DIR/daemon/install-service.sh"
-fi
-
-if [[ -z "$INSTALL_SERVICE_SCRIPT" ]]; then
-    log_error "Could not find install-service.sh in archive"
-    log_info "Archive contents:"
-    find "$TEMP_DIR" -name "install-service.sh" 2>/dev/null || true
-    if [[ "$IS_UPDATE" == "true" ]]; then
-        log_error "Restoring from backup..."
-        rm -rf "$INSTALL_DIR"
-        cp -r "$BACKUP_DIR" "$INSTALL_DIR"
-        systemctl start "$SERVICE_NAME" || log_warn "Could not restart service"
-        rm -f "$INSTALL_DIR/.install-lock"
-    fi
-    exit 1
-fi
-
-log_info "Found daemon installation script"
-
-# For updates, we need to preserve configuration and data
-if [[ "$IS_UPDATE" == "true" ]]; then
-    log_info "Preserving configuration and data files..."
-
-    # Backup config and data before clearing install dir
-    mkdir -p "$TEMP_DIR/preserved"
-    [[ -f "$INSTALL_DIR/appsettings.json" ]] && cp "$INSTALL_DIR/appsettings.json" "$TEMP_DIR/preserved/"
-    [[ -f "$INSTALL_DIR/appsettings.Development.json" ]] && cp "$INSTALL_DIR/appsettings.Development.json" "$TEMP_DIR/preserved/"
-    [[ -d "$INSTALL_DIR/Data" ]] && cp -r "$INSTALL_DIR/Data" "$TEMP_DIR/preserved/"
-    [[ -d "$INSTALL_DIR/wwwroot" ]] && cp -r "$INSTALL_DIR/wwwroot" "$TEMP_DIR/preserved/"
-fi
-
-# Make the installation script executable
-chmod +x "$INSTALL_SERVICE_SCRIPT"
-
-# Run the daemon installation script
-log_section "Installing systemd daemon service"
-if bash "$INSTALL_SERVICE_SCRIPT"; then
-    log_info "Installation completed successfully!"
+# Application Configuration
+AVATAR_BASE_URL=http://localhost:5247
+ASPNETCORE_ENVIRONMENT=Production
+ENVFILE
+    log_warn "Please edit .env file with your Discord bot token and guild ID:"
+    log_warn "  sudo nano $INSTALL_DIR/.env"
 else
-    log_error "Installation failed"
+    log_info "Found existing .env file, keeping current configuration"
+fi
+
+# Pull the latest Docker image
+log_section "Pulling Docker image"
+log_info "Pulling ghcr.io/saltycog/psicat:latest..."
+if ! docker pull ghcr.io/saltycog/psicat:latest; then
+    log_error "Failed to pull Docker image"
     if [[ "$IS_UPDATE" == "true" ]]; then
         log_error "Restoring from backup..."
         rm -rf "$INSTALL_DIR"
-        cp -r "$BACKUP_DIR" "$INSTALL_DIR"
-        systemctl start "$SERVICE_NAME" || log_warn "Could not restart service"
+        mv "$BACKUP_DIR" "$INSTALL_DIR"
+        cd "$INSTALL_DIR"
+        docker-compose up -d || log_warn "Could not restart service"
         rm -f "$INSTALL_DIR/.install-lock"
     fi
     exit 1
 fi
 
-# Restore preserved files for updates
-if [[ "$IS_UPDATE" == "true" ]]; then
-    log_info "Restoring configuration and data files..."
-    [[ -f "$TEMP_DIR/preserved/appsettings.json" ]] && cp "$TEMP_DIR/preserved/appsettings.json" "$INSTALL_DIR/"
-    [[ -f "$TEMP_DIR/preserved/appsettings.Development.json" ]] && cp "$TEMP_DIR/preserved/appsettings.Development.json" "$INSTALL_DIR/"
-    [[ -d "$TEMP_DIR/preserved/Data" ]] && cp -r "$TEMP_DIR/preserved/Data"/* "$INSTALL_DIR/Data/"
-    [[ -d "$TEMP_DIR/preserved/wwwroot" ]] && cp -r "$TEMP_DIR/preserved/wwwroot"/* "$INSTALL_DIR/wwwroot/"
+# Start the service
+log_section "Starting PsiCAT service"
+cd "$INSTALL_DIR"
 
-    # Ensure permissions are correct
-    chown -R psicat:psicat "$INSTALL_DIR"
-    chmod 755 "$INSTALL_DIR"
-    chmod 755 "$INSTALL_DIR/PsiCAT.DiscordApp"
-    chmod 750 "$INSTALL_DIR/Data"
-    chmod 755 "$INSTALL_DIR/wwwroot"
+if docker-compose up -d; then
+    log_info "Service started successfully!"
+else
+    log_error "Failed to start service"
+    if [[ "$IS_UPDATE" == "true" ]]; then
+        log_error "Restoring from backup..."
+        rm -rf "$INSTALL_DIR"
+        mv "$BACKUP_DIR" "$INSTALL_DIR"
+        cd "$INSTALL_DIR"
+        docker-compose up -d || log_warn "Could not restart service"
+        rm -f "$INSTALL_DIR/.install-lock"
+    fi
+    exit 1
+fi
 
-    log_info "Restarting service..."
-    systemctl start "$SERVICE_NAME"
+# Wait for container to be healthy
+log_info "Waiting for service to be ready..."
+sleep 3
+
+if docker ps | grep -q psicat-discord; then
+    log_info "Service is running"
+else
+    log_error "Service failed to start"
+    docker-compose logs
+    exit 1
 fi
 
 # Write version file
 echo "$RELEASE_TAG" > "$INSTALL_DIR/.psicat-version"
-chown psicat:psicat "$INSTALL_DIR/.psicat-version"
 
 # Remove lock file
 rm -f "$INSTALL_DIR/.install-lock"
 
 # Summary
+echo ""
 if [[ "$IS_UPDATE" == "true" ]]; then
     log_section "Update Complete"
     log_info "PsiCAT has been updated to version: $RELEASE_TAG"
     log_info "Service has been restarted"
-    echo ""
-    log_info "Useful commands:"
-    echo "  - Check status:"
-    echo "    sudo systemctl status psicat-discord"
-    echo ""
-    echo "  - View logs:"
-    echo "    sudo journalctl -u psicat-discord -f"
-    echo ""
-    echo "  - Restore from backup (if needed):"
-    echo "    sudo systemctl stop psicat-discord"
-    echo "    sudo rm -rf /opt/psicat/discord"
-    echo "    sudo cp -r /opt/psicat/discord.backup /opt/psicat/discord"
-    echo "    sudo systemctl start psicat-discord"
 else
     log_section "Installation Complete"
     log_info "PsiCAT has been installed (version: $RELEASE_TAG)"
-    log_info "Service name: psicat-discord"
-    echo ""
-    log_info "Next steps:"
-    echo "  1. Configure your bot token and guild ID:"
-    echo "     sudo vi /opt/psicat/discord/appsettings.json"
-    echo ""
-    echo "  2. Start the service:"
-    echo "     sudo systemctl start psicat-discord"
-    echo ""
-    echo "  3. Check status:"
-    echo "     sudo systemctl status psicat-discord"
-    echo ""
-    echo "  4. View logs:"
-    echo "     sudo journalctl -u psicat-discord -f"
 fi
+
+echo ""
+log_info "Service is running at: http://localhost:5247"
+echo ""
+log_info "Useful commands:"
+echo "  - View logs:"
+echo "    docker logs -f psicat-discord"
+echo ""
+echo "  - Check status:"
+echo "    docker ps | grep psicat"
+echo ""
+echo "  - Restart service:"
+echo "    cd $INSTALL_DIR && docker-compose restart"
+echo ""
+echo "  - Stop service:"
+echo "    cd $INSTALL_DIR && docker-compose down"
+echo ""
+echo "  - Update configuration:"
+echo "    sudo nano $INSTALL_DIR/.env"
+echo "    cd $INSTALL_DIR && docker-compose restart"
 echo ""

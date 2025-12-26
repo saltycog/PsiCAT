@@ -108,21 +108,6 @@ jobs:
       - name: Build project
         run: dotnet build -c Release
 
-      - name: Publish project
-        run: dotnet publish PsiCAT.DiscordApp/PsiCAT.DiscordApp.csproj -c Release -o publish
-
-      - name: Create release package
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          # Copy daemon scripts to publish directory
-          mkdir -p publish/daemon
-          cp PsiCAT.DiscordApp/daemon/* publish/daemon/
-
-          # Create zip archive
-          cd publish
-          zip -r ../psicat-${VERSION}.zip .
-          cd ..
-
       - name: Push version tag
         uses: actions-ecosystem/action-push-tag@v1
         with:
@@ -159,7 +144,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.version }}
-          files: psicat-${{ github.event.inputs.version }}.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

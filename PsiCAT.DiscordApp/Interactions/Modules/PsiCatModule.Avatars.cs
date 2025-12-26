@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Discord;
 using Discord.Interactions;
+using Microsoft.Extensions.Logging;
 
 namespace PsiCAT.DiscordApp.Interactions.Modules;
 
@@ -10,7 +11,7 @@ public partial class PsiCatModule
     public class AvatarSubcommands : InteractionModuleBase<SocketInteractionContext>
     {
         private readonly ILogger<PsiCatModule> _logger;
-        private readonly IWebHostEnvironment _hostEnvironment;
+        private readonly string _webRootPath;
         private readonly IHttpClientFactory _httpClientFactory;
 
         private static readonly ConcurrentDictionary<string, string> SupportedMimeTypes = new()
@@ -26,11 +27,11 @@ public partial class PsiCatModule
 
         public AvatarSubcommands(
             ILogger<PsiCatModule> logger,
-            IWebHostEnvironment hostEnvironment,
+            string webRootPath,
             IHttpClientFactory httpClientFactory)
         {
             _logger = logger;
-            _hostEnvironment = hostEnvironment;
+            _webRootPath = webRootPath;
             _httpClientFactory = httpClientFactory;
         }
 
@@ -42,7 +43,7 @@ public partial class PsiCatModule
         {
             try
             {
-                string avatarsPath = Path.Combine(_hostEnvironment.WebRootPath, "avatars");
+                string avatarsPath = Path.Combine(_webRootPath, "avatars");
 
                 if (!Directory.Exists(avatarsPath))
                 {
@@ -127,7 +128,7 @@ public partial class PsiCatModule
 
                 // Get file extension from content type
                 string extension = GetFileExtensionFromContentType(image.ContentType);
-                string avatarsPath = Path.Combine(_hostEnvironment.WebRootPath, "avatars");
+                string avatarsPath = Path.Combine(_webRootPath, "avatars");
 
                 // Ensure avatars directory exists
                 Directory.CreateDirectory(avatarsPath);
@@ -201,7 +202,7 @@ public partial class PsiCatModule
         /// </summary>
         private bool AvatarExistsWithAnyExtension(string name)
         {
-            string avatarsPath = Path.Combine(_hostEnvironment.WebRootPath, "avatars");
+            string avatarsPath = Path.Combine(_webRootPath, "avatars");
             if (!Directory.Exists(avatarsPath))
             {
                 return false;

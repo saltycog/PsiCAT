@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using Microsoft.Extensions.Logging;
 using PsiCAT.DiscordApp.Interactions.Autocomplete;
 using PsiCAT.DiscordApp.Models;
 using PsiCAT.DiscordApp.Services;

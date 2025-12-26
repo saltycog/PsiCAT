@@ -1,9 +1,29 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PsiCAT.DiscordApp\PsiCAT.DiscordApp.csproj" />
+  </ItemGroup>
+
+  <!-- Include daemon directory in publish output -->
+  <ItemGroup>
+    <Content Include="daemon\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="appsettings.Development.example.json" />
+  </ItemGroup>
+
+  <!-- Make daemon scripts executable on Linux -->
+  <Target Name="MakeDaemonExecutable" AfterTargets="Build">
+    <Exec Command="chmod +x $(OutputPath)daemon/install-service.sh" Condition="'$(OS)' != 'Windows_NT' AND Exists('$(OutputPath)daemon/install-service.sh')" />
+  </Target>
 
 </Project>

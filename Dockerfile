@@ -16,20 +16,22 @@ COPY . .
 # Build the solution
 RUN dotnet build "PsiCAT.sln" -c Release -o /app/build
 
-# Publish PsiCAT.DiscordApp
-RUN dotnet publish "PsiCAT.DiscordApp/PsiCAT.DiscordApp.csproj" -c Release -o /app/publish
+# Publish PsiCAT.Core (which includes DiscordApp as dependency)
+RUN dotnet publish "PsiCAT.Core/PsiCAT.Core.csproj" -c Release -o /app/publish
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
 # Copy published application from build stage
+# (Data, wwwroot, and daemon are already included in the publish output from Core's Content items)
 COPY --from=build /app/publish .
 
-# Copy data files and static assets (can be overridden with volumes)
-COPY PsiCAT.DiscordApp/Data ./Data
-COPY PsiCAT.DiscordApp/wwwroot ./wwwroot
+# Expose HTTP and HTTPS ports
+EXPOSE 5247 7011
 
-EXPOSE 5000
+# Set environment variables
+ENV ASPNETCORE_URLS=http://+:5247
+ENV ASPNETCORE_ENVIRONMENT=Production
 
-ENTRYPOINT ["dotnet", "PsiCAT.DiscordApp.dll"]
+ENTRYPOINT ["dotnet", "PsiCAT.Core.dll"]
