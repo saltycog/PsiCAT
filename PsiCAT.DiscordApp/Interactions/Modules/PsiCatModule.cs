@@ -1,4 +1,5 @@
 using Discord.Interactions;
+using Microsoft.Extensions.Logging;
 using PsiCAT.DiscordApp.Services;
 
 namespace PsiCAT.DiscordApp.Interactions.Modules;
@@ -9,20 +10,20 @@ public partial class PsiCatModule : InteractionModuleBase<SocketInteractionConte
     private readonly QuoteService _quoteService;
     private readonly WebhookService _webhookService;
     private readonly ILogger<PsiCatModule> _logger;
-    private readonly IWebHostEnvironment _hostEnvironment;
+    private readonly string _webRootPath;
     private readonly IHttpClientFactory _httpClientFactory;
 
     public PsiCatModule(
         QuoteService quoteService,
         WebhookService webhookService,
         ILogger<PsiCatModule> logger,
-        IWebHostEnvironment hostEnvironment,
+        string webRootPath,
         IHttpClientFactory httpClientFactory)
     {
         _quoteService = quoteService;
         _webhookService = webhookService;
         _logger = logger;
-        _hostEnvironment = hostEnvironment;
+        _webRootPath = webRootPath;
         _httpClientFactory = httpClientFactory;
     }
 }

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -9,32 +9,12 @@
 
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.15.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
   </ItemGroup>
-
-  <ItemGroup>
-    <WwwRootContent Include="wwwroot/**/*" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <DaemonContent Include="daemon/**/*" />
-  </ItemGroup>
-
-  <Target Name="CopyQuotesFile" AfterTargets="Build">
-    <Copy SourceFiles="Data/quotes.json" DestinationFolder="$(OutputPath)Data" SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="CopyWwwRoot" AfterTargets="Build">
-    <Copy SourceFiles="@(WwwRootContent)"
-          DestinationFolder="$(OutputPath)wwwroot/%(RecursiveDir)"
-          SkipUnchangedFiles="true" />
-  </Target>
-
-  <Target Name="CopyDaemonFiles" AfterTargets="Build">
-    <Copy SourceFiles="@(DaemonContent)"
-          DestinationFolder="$(OutputPath)daemon/%(RecursiveDir)"
-          SkipUnchangedFiles="true" />
-    <!-- Make install script executable -->
-    <Exec Command="chmod +x $(OutputPath)daemon/install-service.sh" Condition="'$(OS)' != 'Windows_NT'" />
-  </Target>
 
 </Project>

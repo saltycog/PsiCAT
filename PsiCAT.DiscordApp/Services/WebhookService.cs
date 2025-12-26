@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Webhook;
+using Microsoft.Extensions.Logging;
 using PsiCAT.DiscordApp.Models;
 
 namespace PsiCAT.DiscordApp.Services;
