@@ -17,13 +17,22 @@ Install PsiCAT directly on a Linux server with one command:
 sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/saltycog/PsiCAT/main/install.sh)"
 ```
 
-The installation script will:
+**For fresh installations**, the script will:
 1. Download the latest release from GitHub
 2. Extract application files
 3. Verify/install .NET 8 runtime
 4. Create a `psicat` system user
 5. Configure the systemd service
 6. Prompt for configuration
+
+**For updates**, run the same command on an existing installation. The script will:
+1. Detect the current version
+2. Check for a newer release
+3. Create a backup at `/opt/psicat/discord.backup`
+4. Stop the service
+5. Update binaries while preserving configuration and data files
+6. Restart the service
+7. Offer rollback instructions if needed
 
 For detailed daemon setup information, see [Systemd Service Setup](#systemd-service-setup).
 
@@ -238,6 +247,21 @@ For detailed information, see `PsiCAT.DiscordApp/daemon/README.md`.
 
 ### Updating the Application
 
+**Using the installation script (recommended):**
+
+Simply run the installation script again. It will automatically:
+- Detect the update
+- Create a backup
+- Update binaries
+- Preserve your configuration and quote data
+- Restart the service
+
+```bash
+sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/saltycog/PsiCAT/main/install.sh)"
+```
+
+**Manual update (if needed):**
+
 ```bash
 # Build new release
 dotnet build -c Release
@@ -250,6 +274,17 @@ sudo cp PsiCAT.DiscordApp/bin/Release/net8.0/* /opt/psicat/discord/
 sudo chown -R psicat:psicat /opt/psicat/discord/
 
 # Restart
+sudo systemctl start psicat-discord
+```
+
+**Rollback to previous version (if update fails):**
+
+If something goes wrong, the script creates a backup at `/opt/psicat/discord.backup`:
+
+```bash
+sudo systemctl stop psicat-discord
+sudo rm -rf /opt/psicat/discord
+sudo cp -r /opt/psicat/discord.backup /opt/psicat/discord
 sudo systemctl start psicat-discord
 ```
 
