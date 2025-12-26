@@ -25,7 +25,7 @@ public class WebhookService
         {
             webhook = await channel.CreateWebhookAsync("PsiCAT Quote");
 
-            using var webhookClient = new DiscordWebhookClient(webhook);
+            using DiscordWebhookClient webhookClient = new DiscordWebhookClient(webhook);
 
             await webhookClient.SendMessageAsync(
                 text: quote.Text,

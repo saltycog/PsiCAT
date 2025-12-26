@@ -78,7 +78,7 @@ public class QuoteService
             return null;
         }
 
-        var index = Random.Shared.Next(_quotes.Count);
+        int index = Random.Shared.Next(_quotes.Count);
         return _quotes[index];
     }
 

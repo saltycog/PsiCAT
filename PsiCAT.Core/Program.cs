@@ -1,6 +1,6 @@
 using PsiCAT.DiscordApp;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Register Discord application module
 builder.Services.AddDiscordApp(
@@ -8,7 +8,7 @@ builder.Services.AddDiscordApp(
     builder.Environment.ContentRootPath,
     builder.Environment.WebRootPath);
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Configure HTTP pipeline
 app.UseStaticFiles();
