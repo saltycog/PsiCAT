@@ -1,0 +1,35 @@
+[Unit]
+Description=PsiCAT Discord Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=psicat
+WorkingDirectory=/opt/psicat/discord
+ExecStart=/opt/psicat/discord/PsiCAT.DiscordApp
+
+# Security and isolation
+PrivateTmp=yes
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/psicat/discord/Data
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=60s
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=psicat-discord
+
+# Environment
+Environment="ASPNETCORE_ENVIRONMENT=Production"
+Environment="DOTNET_RUNNING_IN_CONTAINER=false"
+
+[Install]
+WantedBy=multi-user.target
