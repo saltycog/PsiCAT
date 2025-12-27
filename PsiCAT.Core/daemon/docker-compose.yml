@@ -13,7 +13,7 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:5247
       Discord__BotToken: ${DISCORD_BOT_TOKEN}
       Discord__GuildId: ${DISCORD_GUILD_ID}
-      Discord__EnableCommandSync: "true"
+      Discord__EnableCommandSync: true
       PsiCat__AvatarBaseUrl: ${AVATAR_BASE_URL}
     volumes:
       - ./data:/app/Data
