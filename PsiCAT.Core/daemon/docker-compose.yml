@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   psicat-discord:
     image: psicat:latest
@@ -8,13 +10,20 @@ services:
       - "7011:7011"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:5247
       Discord__BotToken: ${DISCORD_BOT_TOKEN}
       Discord__GuildId: ${DISCORD_GUILD_ID}
-      Discord__EnableCommandSync: "true"
+      Discord__EnableCommandSync: true
       PsiCat__AvatarBaseUrl: ${AVATAR_BASE_URL}
     volumes:
-      - ./data/quotes.json:/app/Data/quotes.json
+      - ./data:/app/Data
       - ./data/avatars:/app/wwwroot/avatars
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5247/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     logging:
       driver: "json-file"
       options:

@@ -29,7 +29,7 @@ public class CommandHandler
     {
         try
         {
-            await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+            await _interactions.AddModulesAsync(typeof(CommandHandler).Assembly, _services);
             _logger.LogInformation("Interaction modules loaded");
         }
         catch (Exception ex)
