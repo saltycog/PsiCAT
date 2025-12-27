@@ -95,6 +95,24 @@ mkdir -p "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR/data/avatars"
 log_info "Created $INSTALL_DIR"
 
+# Copy default data from project if not already installed
+if [[ ! -f "$INSTALL_DIR/data/quotes.json" && -f "${BUILD_DIR}/PsiCAT.Core/Data/quotes.json" ]]; then
+    log_info "Copying default quotes from project..."
+    cp "${BUILD_DIR}/PsiCAT.Core/Data/quotes.json" "$INSTALL_DIR/data/quotes.json"
+fi
+
+if [[ -d "${BUILD_DIR}/PsiCAT.Core/wwwroot/avatars" ]]; then
+    for avatar in "${BUILD_DIR}/PsiCAT.Core/wwwroot/avatars"/*; do
+        if [[ -f "$avatar" ]]; then
+            avatar_name=$(basename "$avatar")
+            if [[ ! -f "$INSTALL_DIR/data/avatars/$avatar_name" ]]; then
+                log_info "Copying avatar: $avatar_name"
+                cp "$avatar" "$INSTALL_DIR/data/avatars/"
+            fi
+        fi
+    done
+fi
+
 # Copy docker-compose.yml
 log_info "Copying docker-compose.yml..."
 cp "${BUILD_DIR}/PsiCAT.Core/daemon/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
