@@ -240,25 +240,19 @@ sudo systemctl enable docker
 
 ## Uninstallation
 
-To remove PsiCAT:
+To remove PsiCAT, use the uninstall script:
 
 ```bash
-# Stop the service
-cd /opt/psicat/discord
-docker-compose down
-
-# Remove application directory (includes all data!)
-sudo rm -rf /opt/psicat/discord
-
-# Remove the installation script (optional)
-# sudo rm /path/to/install.sh
+sudo bash /opt/psicat/discord/uninstall.sh
 ```
 
-**Warning**: Removing `/opt/psicat/discord` will delete all your quotes and avatars. Create a backup first:
+The uninstall script will:
+1. Offer to back up your data and configuration
+2. Stop the Docker service
+3. Remove the installation directory
+4. Optionally remove the Docker image
 
-```bash
-sudo cp -r /opt/psicat/discord/data /tmp/psicat-backup
-```
+**Note**: The uninstall script backs up your data to `/tmp/psicat-backup-{timestamp}` before removal, so your quotes and avatars are safely preserved.
 
 ## Image Updates
 
