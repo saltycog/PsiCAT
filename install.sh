@@ -96,9 +96,16 @@ mkdir -p "$INSTALL_DIR/data/avatars"
 log_info "Created $INSTALL_DIR"
 
 # Copy default data from project if not already installed
-if [[ ! -f "$INSTALL_DIR/data/quotes.json" && -f "${BUILD_DIR}/PsiCAT.Core/Data/quotes.json" ]]; then
-    log_info "Copying default quotes from project..."
-    cp "${BUILD_DIR}/PsiCAT.Core/Data/quotes.json" "$INSTALL_DIR/data/quotes.json"
+if [[ ! -f "$INSTALL_DIR/data/quotes.json" ]]; then
+    if [[ -f "${BUILD_DIR}/PsiCAT.Core/Data/quotes.json" ]]; then
+        log_info "Copying default quotes from project..."
+        cp "${BUILD_DIR}/PsiCAT.Core/Data/quotes.json" "$INSTALL_DIR/data/quotes.json"
+    else
+        log_info "Creating empty quotes database..."
+        cat > "$INSTALL_DIR/data/quotes.json" << 'QUOTESFILE'
+[]
+QUOTESFILE
+    fi
 fi
 
 if [[ -d "${BUILD_DIR}/PsiCAT.Core/wwwroot/avatars" ]]; then
