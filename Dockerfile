@@ -31,7 +31,7 @@ COPY --from=build /app/publish .
 EXPOSE 5247 7011
 
 # Set environment variables
-ENV ASPNETCORE_URLS=http://+:5247
+ENV ASPNETCORE_URLS=http://0.0.0.0:5247
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 ENTRYPOINT ["dotnet", "PsiCAT.Core.dll"]
