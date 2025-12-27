@@ -11,7 +11,7 @@ services:
       Discord__BotToken: ${DISCORD_BOT_TOKEN}
       Discord__GuildId: ${DISCORD_GUILD_ID}
       Discord__EnableCommandSync: "true"
-      PsiCat__AvatarBaseUrl: ${AVATAR_BASE_URL:-http://localhost:5247}
+      PsiCat__AvatarBaseUrl: ${AVATAR_BASE_URL}
     volumes:
       - ./data/quotes.json:/app/Data/quotes.json
       - ./data/avatars:/app/wwwroot/avatars
