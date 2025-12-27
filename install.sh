@@ -6,9 +6,11 @@ set -euo pipefail
 #
 # Usage patterns:
 # 1. Remote (curl): /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/saltycog/PsiCAT/main/install.sh)"
-# 2. Local (from cloned repo): cd /path/to/PsiCAT && sudo bash install.sh
+# 2. Remote (specific branch): /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/saltycog/PsiCAT/fix/branch-name/install.sh)" -- fix/branch-name
+# 3. Local (from cloned repo): cd /path/to/PsiCAT && sudo bash install.sh
 
 INSTALL_DIR="/opt/psicat/discord"
+CLONE_BRANCH="${1:-main}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -66,11 +68,11 @@ else
     BUILD_DIR=$(mktemp -d)
     trap "rm -rf $BUILD_DIR" EXIT
 
-    if ! git clone "https://github.com/saltycog/PsiCAT.git" "$BUILD_DIR" >/dev/null 2>&1; then
-        log_error "Failed to clone repository from GitHub"
+    if ! git clone -b "$CLONE_BRANCH" "https://github.com/saltycog/PsiCAT.git" "$BUILD_DIR" >/dev/null 2>&1; then
+        log_error "Failed to clone repository from GitHub (branch: $CLONE_BRANCH)"
         exit 1
     fi
-    log_info "Repository cloned"
+    log_info "Repository cloned (branch: $CLONE_BRANCH)"
 fi
 
 echo ""
