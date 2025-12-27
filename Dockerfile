@@ -23,8 +23,11 @@ RUN dotnet publish "PsiCAT.Core/PsiCAT.Core.csproj" -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
+# Create data directories that will be mounted from host
+RUN mkdir -p /app/Data /app/wwwroot/avatars
+
 # Copy published application from build stage
-# (Data, wwwroot, and daemon are already included in the publish output from Core's Content items)
+# (daemon files are included in the publish output from Core's Content items)
 COPY --from=build /app/publish .
 
 # Expose HTTP and HTTPS ports

@@ -108,6 +108,7 @@ if [[ ! -f "$INSTALL_DIR/data/quotes.json" ]]; then
 []
 QUOTESFILE
     fi
+    log_info "Quotes file created at: $INSTALL_DIR/data/quotes.json"
 fi
 
 if [[ -d "${BUILD_DIR}/PsiCAT.Core/wwwroot/avatars" ]]; then
@@ -121,6 +122,10 @@ if [[ -d "${BUILD_DIR}/PsiCAT.Core/wwwroot/avatars" ]]; then
         fi
     done
 fi
+
+# Ensure proper permissions for docker to access mounted volumes
+chmod -R 755 "$INSTALL_DIR/data" 2>/dev/null || true
+log_info "Data directory ready for mounting at: $INSTALL_DIR/data"
 
 # Copy docker-compose.yml
 log_info "Copying docker-compose.yml..."
