@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   psicat-discord:
-    image: ghcr.io/saltycog/psicat:latest
+    image: psicat:latest
     container_name: psicat-discord
     restart: unless-stopped
     ports:

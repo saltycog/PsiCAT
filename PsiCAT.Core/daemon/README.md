@@ -12,25 +12,53 @@ This directory contains Docker and Docker Compose configuration for running PsiC
 ### Prerequisites
 
 - Docker and Docker Compose installed
+- `git` installed (for cloning repository or remote installations)
+- `curl` and `jq` installed (for downloading configuration and checking for updates)
 - `sudo` privileges (script requires root)
-- Internet connection (for image download)
 - Discord bot token (create one at https://discord.com/developers/applications)
 - Discord server/guild ID
 
 ### Installation
 
-Run the root-level installation script:
+There are two ways to install PsiCAT:
+
+#### Option 1: Remote Installation (One-liner)
+
+Run the installation script directly from GitHub:
 
 ```bash
+sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/saltycog/PsiCAT/main/install.sh)"
+```
+
+This will:
+- Clone the repository to a temporary directory
+- Build the Docker image locally
+- Set up the service at `/opt/psicat/discord`
+- Clean up temporary files
+
+#### Option 2: Local Installation (From Cloned Repository)
+
+Clone the repository and run the script from the repository root:
+
+```bash
+git clone https://github.com/saltycog/PsiCAT.git
+cd PsiCAT
 sudo bash install.sh
 ```
 
-The script will:
-1. Validate Docker and Docker Compose installation
+This will:
+- Use the Dockerfile in the current directory
+- Build the Docker image locally
+- Set up the service at `/opt/psicat/discord`
+
+---
+
+Either way, the installation script will:
+1. Validate Docker, Docker Compose, curl, jq, and git installation
 2. Create `/opt/psicat/discord` directory
 3. Download `docker-compose.yml` configuration
 4. Create `.env` file with configuration template
-5. Pull the latest Docker image
+5. Build the Docker image locally from the Dockerfile
 6. Start the service with docker-compose
 
 ### Configuration
@@ -99,7 +127,7 @@ After installation, the application is located at `/opt/psicat/discord/` with th
 /opt/psicat/discord/
 ├── docker-compose.yml          - Docker Compose configuration
 ├── .env                        - Environment variables (Discord token, etc.)
-├── .psicat-version             - Installed version tag
+├── .psicat-commit              - Installed commit hash
 ├── data/
 │   ├── quotes.json             - Quote database (persistent)
 │   └── avatars/                - Avatar image files (persistent)
@@ -125,13 +153,14 @@ sudo bash /path/to/install.sh
 ```
 
 The installer will:
-1. Detect your existing installation
-2. Ask if you want to update
-3. Create a backup of your configuration and data
-4. Pull the latest Docker image
-5. Restart the service with the new image
+1. Check the latest commit hash on the main branch
+2. Compare with your installed commit hash
+3. If an update is available, ask for confirmation
+4. Create a backup of your configuration and data
+5. Build the latest Docker image locally
+6. Restart the service with the new image
 
-Your data (`data/`, `.env`) is preserved during updates.
+Your data (`data/`, `.env`, and `.psicat-commit`) are preserved during updates.
 
 ## Troubleshooting
 
@@ -233,8 +262,8 @@ sudo cp -r /opt/psicat/discord/data /tmp/psicat-backup
 
 ## Image Updates
 
-When you run the installer script, it automatically:
-1. Pulls the latest Docker image from `ghcr.io/saltycog/psicat:latest`
+When you run the installer script to update, it automatically:
+1. Builds the Docker image locally from the Dockerfile
 2. Backs up your current data and configuration
 3. Restarts the container with the new image
 4. Restores your data and configuration
