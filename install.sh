@@ -129,66 +129,59 @@ log_info "Data directory ready for mounting at: $INSTALL_DIR/data"
 
 # Copy docker-compose.yml
 log_info "Copying docker-compose.yml..."
+if [[ ! -f "${BUILD_DIR}/PsiCAT.Core/daemon/docker-compose.yml" ]]; then
+    log_error "Could not find docker-compose.yml at: ${BUILD_DIR}/PsiCAT.Core/daemon/docker-compose.yml"
+    log_error "BUILD_DIR is: $BUILD_DIR"
+    log_error "Contents of BUILD_DIR:"
+    ls -la "$BUILD_DIR" 2>/dev/null || echo "  (directory does not exist)"
+    exit 1
+fi
 cp "${BUILD_DIR}/PsiCAT.Core/daemon/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 
 # Configuration section
 log_section "Configuration Setup"
 echo ""
 
-# Ensure appsettings.json exists (handles both new installs and updates)
-if [[ -d "$INSTALL_DIR/appsettings.json" ]]; then
-    # If it was created as a directory, remove it
-    log_warn "Found appsettings.json as a directory (should be a file)"
-    log_info "Removing incorrect directory..."
-    rm -rf "$INSTALL_DIR/appsettings.json"
+# Check if this is an update from an older version (has .env file)
+if [[ -f "$INSTALL_DIR/.env" ]]; then
+    log_warn "Old .env file found - you may need to migrate settings:"
+    echo "  1. Review your old .env file: cat $INSTALL_DIR/.env"
+    echo "  2. Update appsettings.json with your settings: sudo nano $INSTALL_DIR/appsettings.json"
+    echo "  3. You can remove the old .env when done: sudo rm $INSTALL_DIR/.env"
+    echo ""
 fi
 
-if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
-    log_info "Setting up appsettings.json..."
-    if [[ ! -f "${BUILD_DIR}/PsiCAT.Core/appsettings.json" ]]; then
-        log_error "Could not find appsettings.json template in $BUILD_DIR/PsiCAT.Core/"
-        exit 1
-    fi
-
-    cp "${BUILD_DIR}/PsiCAT.Core/appsettings.json" "$INSTALL_DIR/appsettings.json"
-
-    # Verify the file was created correctly
-    if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
-        log_error "Failed to create appsettings.json - copy may have failed"
-        exit 1
-    fi
-
-    log_info "Configuration file created at: $INSTALL_DIR/appsettings.json"
-    echo ""
-
-    # Check if this is an update from an older version (has .env file)
-    if [[ -f "$INSTALL_DIR/.env" ]]; then
-        log_warn "Old .env file found - you may need to migrate settings:"
-        echo "  1. Review your old .env file: cat $INSTALL_DIR/.env"
-        echo "  2. Update appsettings.json with your settings: sudo nano $INSTALL_DIR/appsettings.json"
-        echo "  3. You can remove the old .env when done: sudo rm $INSTALL_DIR/.env"
-        echo ""
-    fi
-
-    log_warn "IMPORTANT: Configure your bot:"
-    echo "  sudo nano $INSTALL_DIR/appsettings.json"
-    echo ""
-    echo "Required settings:"
-    echo "  - Discord.BotToken"
-    echo "  - Discord.GuildId"
-    echo ""
-    echo "Optional settings:"
-    echo "  - PsiCat.AvatarBaseUrl"
-    echo "  - PsiCat.AutoQuote* (for auto-quote feature)"
-    echo ""
+if [[ -f "$INSTALL_DIR/appsettings.json" ]]; then
+    log_info "Configuration found at: $INSTALL_DIR/appsettings.json"
 else
-    log_info "Existing configuration found at $INSTALL_DIR/appsettings.json"
-    echo ""
-    echo "To update configuration:"
-    echo "  sudo nano $INSTALL_DIR/appsettings.json"
-    echo ""
+    log_info "New installation - appsettings.json will be created from template"
+fi
+echo ""
+
+echo ""
+
+# Final validation before Docker operations
+log_section "Pre-Docker Validation"
+if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
+    log_error "FATAL: appsettings.json does not exist at $INSTALL_DIR/appsettings.json"
+    log_error "This file is required for the container to start"
+    exit 1
 fi
 
+if [[ -d "$INSTALL_DIR/appsettings.json" ]]; then
+    log_error "FATAL: appsettings.json exists as a directory, not a file"
+    log_error "Removing and retrying..."
+    rm -rf "$INSTALL_DIR/appsettings.json"
+
+    if [[ -f "${BUILD_DIR}/PsiCAT.Core/appsettings.json" ]]; then
+        cp "${BUILD_DIR}/PsiCAT.Core/appsettings.json" "$INSTALL_DIR/appsettings.json"
+    else
+        log_error "FATAL: Cannot find source appsettings.json in $BUILD_DIR/PsiCAT.Core/"
+        exit 1
+    fi
+fi
+
+log_info "Configuration file validation passed"
 echo ""
 
 # Build Docker image
