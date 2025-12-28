@@ -135,24 +135,36 @@ cp "${BUILD_DIR}/PsiCAT.Core/daemon/docker-compose.yml" "$INSTALL_DIR/docker-com
 log_section "Configuration Setup"
 echo ""
 
-# Check if this is a new installation
+# Ensure appsettings.json exists (handles both new installs and updates)
 if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
-    log_info "Creating appsettings.json from project template..."
+    log_info "Setting up appsettings.json..."
     if [[ -f "${BUILD_DIR}/PsiCAT.Core/appsettings.json" ]]; then
         cp "${BUILD_DIR}/PsiCAT.Core/appsettings.json" "$INSTALL_DIR/appsettings.json"
         log_info "Configuration file created at: $INSTALL_DIR/appsettings.json"
         echo ""
-        log_warn "IMPORTANT: Edit the configuration file before starting the service:"
+
+        # Check if this is an update from an older version (has .env file)
+        if [[ -f "$INSTALL_DIR/.env" ]]; then
+            log_warn "Old .env file found - you may need to migrate settings:"
+            echo "  1. Review your old .env file: cat $INSTALL_DIR/.env"
+            echo "  2. Update appsettings.json with your settings: sudo nano $INSTALL_DIR/appsettings.json"
+            echo "  3. You can remove the old .env when done: sudo rm $INSTALL_DIR/.env"
+            echo ""
+        fi
+
+        log_warn "IMPORTANT: Configure your bot:"
         echo "  sudo nano $INSTALL_DIR/appsettings.json"
         echo ""
-        echo "You need to set at minimum:"
-        echo "  - Discord.BotToken (required)"
-        echo "  - Discord.GuildId (required)"
-        echo "  - PsiCat.AvatarBaseUrl (recommended)"
-        echo "  - PsiCat.AutoQuote* settings (optional)"
+        echo "Required settings:"
+        echo "  - Discord.BotToken"
+        echo "  - Discord.GuildId"
+        echo ""
+        echo "Optional settings:"
+        echo "  - PsiCat.AvatarBaseUrl"
+        echo "  - PsiCat.AutoQuote* (for auto-quote feature)"
         echo ""
     else
-        log_error "Could not find appsettings.json template"
+        log_error "Could not find appsettings.json template in $BUILD_DIR"
         exit 1
     fi
 else
