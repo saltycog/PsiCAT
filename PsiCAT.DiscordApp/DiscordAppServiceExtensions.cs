@@ -30,6 +30,8 @@ public static class DiscordAppServiceExtensions
         string contentRootPath,
         string webRootPath)
     {
+        // Use default wwwroot path if not provided
+        webRootPath ??= Path.Combine(contentRootPath, "wwwroot");
         // Bind configuration options
         services.Configure<DiscordOptions>(
             configuration.GetSection("Discord"));
@@ -57,8 +59,9 @@ public static class DiscordAppServiceExtensions
                 sp.GetRequiredService<ILogger<QuoteService>>()));
         services.AddSingleton<WebhookService>();
 
-        // Register hosted service (bot lifecycle)
+        // Register hosted services (bot lifecycle and auto-quotes)
         services.AddHostedService<DiscordBotService>();
+        services.AddHostedService<AutoQuoteService>();
 
         // HTTP client for avatar downloads
         services.AddHttpClient();
