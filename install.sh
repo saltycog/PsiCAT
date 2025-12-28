@@ -123,12 +123,6 @@ if [[ -d "${BUILD_DIR}/PsiCAT.Core/wwwroot/avatars" ]]; then
     done
 fi
 
-# Remove directory if it exists from failed previous install (prevents cp from creating nested structure)
-if [[ -d "$INSTALL_DIR/appsettings.json" ]]; then
-    log_warn "Removing directory at appsettings.json (from failed previous install)..."
-    rm -rf "$INSTALL_DIR/appsettings.json"
-fi
-
 if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
     log_info "Copying configuration template..."
     cp "${BUILD_DIR}/PsiCAT.Core/appsettings.json" "$INSTALL_DIR/appsettings.json"
@@ -163,32 +157,6 @@ echo ""
 # Start the service
 log_section "Starting PsiCAT service"
 cd "$INSTALL_DIR"
-
-# Critical: Ensure appsettings.json exists as a FILE before docker-compose runs
-# Docker will create it as a DIRECTORY if it doesn't exist, causing mount failure
-if [[ -d "$INSTALL_DIR/appsettings.json" ]]; then
-    log_warn "appsettings.json is a directory! Removing and recreating as file..."
-    rm -rf "$INSTALL_DIR/appsettings.json"
-fi
-
-if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
-    log_error "appsettings.json is missing! Attempting to copy from build directory..."
-    if [[ -f "${BUILD_DIR}/PsiCAT.Core/appsettings.json" ]]; then
-        cp "${BUILD_DIR}/PsiCAT.Core/appsettings.json" "$INSTALL_DIR/appsettings.json"
-        log_info "appsettings.json copied successfully"
-    else
-        log_error "Source appsettings.json not found at: ${BUILD_DIR}/PsiCAT.Core/appsettings.json"
-        log_error "Cannot proceed without configuration file"
-        exit 1
-    fi
-fi
-
-# Final verification
-if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
-    log_error "Failed to create appsettings.json as a file"
-    log_error "Check permissions and filesystem at: $INSTALL_DIR"
-    exit 1
-fi
 
 if ! docker-compose up -d; then
     log_error "Failed to start service with docker-compose"
