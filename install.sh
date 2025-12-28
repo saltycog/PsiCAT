@@ -131,126 +131,36 @@ log_info "Data directory ready for mounting at: $INSTALL_DIR/data"
 log_info "Copying docker-compose.yml..."
 cp "${BUILD_DIR}/PsiCAT.Core/daemon/docker-compose.yml" "$INSTALL_DIR/docker-compose.yml"
 
-# Function to check if config is valid
-is_configured() {
-    local token=$(grep "^DISCORD_BOT_TOKEN=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2)
-    local guild=$(grep "^DISCORD_GUILD_ID=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2)
-
-    # Check if values are set and not empty/placeholder
-    if [[ -n "$token" && "$token" != "your_bot_token_here" && \
-          -n "$guild" && "$guild" != "your_guild_id_here" ]]; then
-        return 0
-    fi
-    return 1
-}
-
-# Check if this is a new installation
-if [[ ! -f "$INSTALL_DIR/.env" ]]; then
-    NEW_CONFIG="true"
-else
-    NEW_CONFIG="false"
-fi
-
 # Configuration section
-log_section "Discord Bot Configuration"
+log_section "Configuration Setup"
 echo ""
 
-if [[ "$NEW_CONFIG" == "true" ]]; then
-    log_info "New installation - Discord bot configuration required"
-    echo ""
-    echo "Get your Discord bot token from: https://discord.com/developers/applications"
-    echo ""
-
-    # Prompt for bot token
-    while true; do
-        read -p "Discord Bot Token: " -r BOT_TOKEN
-        if [[ -n "$BOT_TOKEN" && ${#BOT_TOKEN} -gt 10 ]]; then
-            break
-        fi
-        log_error "Invalid token - please try again"
-    done
-
-    # Prompt for guild ID
-    while true; do
-        read -p "Discord Guild ID: " -r GUILD_ID
-        if [[ "$GUILD_ID" =~ ^[0-9]+$ && ${#GUILD_ID} -gt 5 ]]; then
-            break
-        fi
-        log_error "Invalid guild ID - must be a number"
-    done
-
-    # Optional: Avatar base URL
-    read -p "Avatar Base URL (default: http://0.0.0.0:5247): " -r AVATAR_URL
-    AVATAR_URL="${AVATAR_URL:-http://0.0.0.0:5247}"
-
-    # Write configuration file
-    log_info "Writing configuration..."
-    cat > "$INSTALL_DIR/.env" << ENVFILE
-# Discord Bot Configuration
-DISCORD_BOT_TOKEN=$BOT_TOKEN
-DISCORD_GUILD_ID=$GUILD_ID
-
-# Application Configuration
-AVATAR_BASE_URL=$AVATAR_URL
-ASPNETCORE_ENVIRONMENT=Production
-ENVFILE
-
-    log_info "Configuration saved"
-    echo ""
-
-else
-    # Existing installation
-    if is_configured; then
-        log_info "Existing configuration found and is valid"
+# Check if this is a new installation
+if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
+    log_info "Creating appsettings.json from project template..."
+    if [[ -f "${BUILD_DIR}/PsiCAT.Core/appsettings.json" ]]; then
+        cp "${BUILD_DIR}/PsiCAT.Core/appsettings.json" "$INSTALL_DIR/appsettings.json"
+        log_info "Configuration file created at: $INSTALL_DIR/appsettings.json"
+        echo ""
+        log_warn "IMPORTANT: Edit the configuration file before starting the service:"
+        echo "  sudo nano $INSTALL_DIR/appsettings.json"
+        echo ""
+        echo "You need to set at minimum:"
+        echo "  - Discord.BotToken (required)"
+        echo "  - Discord.GuildId (required)"
+        echo "  - PsiCat.AvatarBaseUrl (recommended)"
+        echo "  - PsiCat.AutoQuote* settings (optional)"
         echo ""
     else
-        log_warn "Configuration found but may be incomplete"
-        echo ""
-        echo "Update configuration? (y/n): "
-        read -p "" -r UPDATE_CONFIG
-
-        if [[ "$UPDATE_CONFIG" =~ ^[Yy]$ ]]; then
-            # Prompt for bot token
-            while true; do
-                read -p "Discord Bot Token: " -r BOT_TOKEN
-                if [[ -n "$BOT_TOKEN" && ${#BOT_TOKEN} -gt 10 ]]; then
-                    break
-                fi
-                log_error "Invalid token - please try again"
-            done
-
-            # Prompt for guild ID
-            while true; do
-                read -p "Discord Guild ID: " -r GUILD_ID
-                if [[ "$GUILD_ID" =~ ^[0-9]+$ && ${#GUILD_ID} -gt 5 ]]; then
-                    break
-                fi
-                log_error "Invalid guild ID - must be a number"
-            done
-
-            # Optional: Avatar base URL
-            read -p "Avatar Base URL (default: http://0.0.0.0:5247): " -r AVATAR_URL
-            AVATAR_URL="${AVATAR_URL:-http://0.0.0.0:5247}"
-
-            # Update configuration file
-            log_info "Updating configuration..."
-            cat > "$INSTALL_DIR/.env" << ENVFILE
-# Discord Bot Configuration
-DISCORD_BOT_TOKEN=$BOT_TOKEN
-DISCORD_GUILD_ID=$GUILD_ID
-
-# Application Configuration
-AVATAR_BASE_URL=$AVATAR_URL
-ASPNETCORE_ENVIRONMENT=Production
-ENVFILE
-
-            log_info "Configuration updated"
-            echo ""
-        else
-            log_info "Keeping existing configuration"
-            echo ""
-        fi
+        log_error "Could not find appsettings.json template"
+        exit 1
     fi
+else
+    log_info "Existing configuration found at $INSTALL_DIR/appsettings.json"
+    echo ""
+    echo "To update configuration:"
+    echo "  sudo nano $INSTALL_DIR/appsettings.json"
+    echo ""
 fi
 
 echo ""
@@ -295,26 +205,19 @@ echo ""
 log_info "PsiCAT is running and listening on 0.0.0.0:5247"
 echo ""
 
-if is_configured; then
-    log_info "Bot is configured and starting up"
-    log_info "Check connection status: docker logs -f psicat-discord"
-else
-    log_warn "Bot is NOT configured - it will not connect to Discord yet"
-    echo ""
-    echo "To configure:"
-    echo "  sudo nano $INSTALL_DIR/.env"
-    echo ""
-    echo "Then restart the service:"
-    echo "  cd $INSTALL_DIR && docker-compose restart"
-    echo ""
-    echo "Check logs:"
-    echo "  docker logs -f psicat-discord"
-fi
+log_warn "IMPORTANT: Configure your bot before it will work"
+echo ""
+echo "Edit the configuration file:"
+echo "  sudo nano $INSTALL_DIR/appsettings.json"
+echo ""
+echo "After editing, restart the service:"
+echo "  cd $INSTALL_DIR && docker-compose restart"
+echo ""
 
 echo ""
 log_info "Useful commands:"
 echo "  View logs:        docker logs -f psicat-discord"
 echo "  Restart service:  cd $INSTALL_DIR && docker-compose restart"
 echo "  Stop service:     cd $INSTALL_DIR && docker-compose down"
-echo "  Edit config:      sudo nano $INSTALL_DIR/.env"
+echo "  Edit config:      sudo nano $INSTALL_DIR/appsettings.json"
 echo ""
