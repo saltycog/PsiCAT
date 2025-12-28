@@ -136,37 +136,51 @@ log_section "Configuration Setup"
 echo ""
 
 # Ensure appsettings.json exists (handles both new installs and updates)
+if [[ -d "$INSTALL_DIR/appsettings.json" ]]; then
+    # If it was created as a directory, remove it
+    log_warn "Found appsettings.json as a directory (should be a file)"
+    log_info "Removing incorrect directory..."
+    rm -rf "$INSTALL_DIR/appsettings.json"
+fi
+
 if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
     log_info "Setting up appsettings.json..."
-    if [[ -f "${BUILD_DIR}/PsiCAT.Core/appsettings.json" ]]; then
-        cp "${BUILD_DIR}/PsiCAT.Core/appsettings.json" "$INSTALL_DIR/appsettings.json"
-        log_info "Configuration file created at: $INSTALL_DIR/appsettings.json"
-        echo ""
-
-        # Check if this is an update from an older version (has .env file)
-        if [[ -f "$INSTALL_DIR/.env" ]]; then
-            log_warn "Old .env file found - you may need to migrate settings:"
-            echo "  1. Review your old .env file: cat $INSTALL_DIR/.env"
-            echo "  2. Update appsettings.json with your settings: sudo nano $INSTALL_DIR/appsettings.json"
-            echo "  3. You can remove the old .env when done: sudo rm $INSTALL_DIR/.env"
-            echo ""
-        fi
-
-        log_warn "IMPORTANT: Configure your bot:"
-        echo "  sudo nano $INSTALL_DIR/appsettings.json"
-        echo ""
-        echo "Required settings:"
-        echo "  - Discord.BotToken"
-        echo "  - Discord.GuildId"
-        echo ""
-        echo "Optional settings:"
-        echo "  - PsiCat.AvatarBaseUrl"
-        echo "  - PsiCat.AutoQuote* (for auto-quote feature)"
-        echo ""
-    else
-        log_error "Could not find appsettings.json template in $BUILD_DIR"
+    if [[ ! -f "${BUILD_DIR}/PsiCAT.Core/appsettings.json" ]]; then
+        log_error "Could not find appsettings.json template in $BUILD_DIR/PsiCAT.Core/"
         exit 1
     fi
+
+    cp "${BUILD_DIR}/PsiCAT.Core/appsettings.json" "$INSTALL_DIR/appsettings.json"
+
+    # Verify the file was created correctly
+    if [[ ! -f "$INSTALL_DIR/appsettings.json" ]]; then
+        log_error "Failed to create appsettings.json - copy may have failed"
+        exit 1
+    fi
+
+    log_info "Configuration file created at: $INSTALL_DIR/appsettings.json"
+    echo ""
+
+    # Check if this is an update from an older version (has .env file)
+    if [[ -f "$INSTALL_DIR/.env" ]]; then
+        log_warn "Old .env file found - you may need to migrate settings:"
+        echo "  1. Review your old .env file: cat $INSTALL_DIR/.env"
+        echo "  2. Update appsettings.json with your settings: sudo nano $INSTALL_DIR/appsettings.json"
+        echo "  3. You can remove the old .env when done: sudo rm $INSTALL_DIR/.env"
+        echo ""
+    fi
+
+    log_warn "IMPORTANT: Configure your bot:"
+    echo "  sudo nano $INSTALL_DIR/appsettings.json"
+    echo ""
+    echo "Required settings:"
+    echo "  - Discord.BotToken"
+    echo "  - Discord.GuildId"
+    echo ""
+    echo "Optional settings:"
+    echo "  - PsiCat.AvatarBaseUrl"
+    echo "  - PsiCat.AutoQuote* (for auto-quote feature)"
+    echo ""
 else
     log_info "Existing configuration found at $INSTALL_DIR/appsettings.json"
     echo ""
